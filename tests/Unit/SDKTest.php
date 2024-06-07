@@ -3,56 +3,105 @@
 namespace DayRev\Smmry\Tests\Unit;
 
 use DayRev\Smmry\SDK;
-use ReflectionMethod;
+use PHPUnit\Framework\TestCase;
 use stdClass;
 
-class SDKTest extends \PHPUnit_Framework_TestCase
+class SDKTest extends TestCase
 {
     protected $sdk;
+    protected $config = [];
 
-    public function setUp()
+    protected function setUp(): void
     {
-        $this->sdk = new SDK(['api_key' => 'D74KLJ345UH9SHDF1', 'summary_length' => 5]);
+        parent::setUp();
+        $this->parseParams();
+        $this->sdk = new SDK(['api_key' => $this->config['api_key'], 'summary_length' => 5]);
     }
 
-    public function testContainsDynamicProperties()
+    protected function parseParams()
     {
-        $this->assertObjectHasAttribute('api_key', $this->sdk);
-        $this->assertAttributeEquals('D74KLJ345UH9SHDF1', 'api_key', $this->sdk);
+        $params = $_SERVER['argv'];
+        foreach ($params as $index => $param)
+        {
+            if ($param != '-d') {
+                continue;
+            }
 
-        $this->assertObjectHasAttribute('summary_length', $this->sdk);
-        $this->assertAttributeEquals(5, 'summary_length', $this->sdk);
+            if (!$config = $params[$index + 1] ?? false) {
+                continue;
+            }
+
+            if (strpos($config, '=') === false) {
+                continue;
+            }
+
+            list($key, $value) = explode('=', $config);
+            $this->config[$key] = $value;
+        }
+
+        // Ensure 'api_key' is set
+        if (!isset($this->config['api_key'])) {
+            $this->config['api_key'] = 'FD66E4690D'; // Default or test value
+        }
     }
 
-    public function testCleanSummary()
+    public function testApiKeyIsInvalid()
+    {
+        $sdk = new SDK(['api_key' => 'INVALID1J3243N090', 'summary_length' => 5]);
+        $response = $sdk->summarizeText($this->getTextToSummarize());
+
+        $this->assertInstanceOf(stdClass::class, $response);
+        $this->assertTrue(property_exists($response, 'sm_api_error'), "Property 'sm_api_error' does not exist");
+        $this->assertTrue(property_exists($response, 'sm_api_message'), "Property 'sm_api_message' does not exist");
+        $this->assertEquals(1, $response->sm_api_error);
+        $this->assertEquals('INVALID API KEY', $response->sm_api_message);
+    }
+
+    public function testSummarizesExpectedText()
+    {
+        $response = $this->sdk->summarizeText($this->getTextToSummarize());
+
+        $this->assertInstanceOf(stdClass::class, $response);
+        $this->assertTrue(property_exists($response, 'sm_api_content'), "Property 'sm_api_content' does not exist");
+        $this->assertEquals($this->getExpectedTextSummary()->sm_api_content, $response->sm_api_content);
+    }
+
+    public function testSummarizesExpectedUrlText()
+    {
+        $response = $this->sdk->summarizeUrl(
+            'http://collegefootball.ap.org/article/mayfield-leads-oklahoma-35-19-sugar-bowl-win-over-auburn'
+        );
+
+        $this->assertInstanceOf(stdClass::class, $response);
+        $this->assertTrue(property_exists($response, 'sm_api_content'), "Property 'sm_api_content' does not exist");
+        $this->assertEquals($this->getExpectedUrlTextSummary()->sm_api_content, $response->sm_api_content);
+    }
+
+    protected function getExpectedSummary(string $text): stdClass
     {
         $summary = new stdClass();
-        $summary->sm_api_title = ' Greeting ';
-        $summary->sm_api_content = ' Hello, how are you? ';
-        $summary->sm_api_img_url = ' http://smmry.com/sm_images/sm_logo.png ';
+        $summary->sm_api_title = '';
+        $summary->sm_api_content = $text;
 
-        $summary = $this->invokeProtectedSdkMethod('cleanSummary', [$summary]);
-
-        $this->assertEquals('Greeting', $summary->sm_api_title);
-        $this->assertEquals('Hello, how are you?', $summary->sm_api_content);
-        $this->assertEquals(' http://smmry.com/sm_images/sm_logo.png ', $summary->sm_api_img_url);
+        return $summary;
     }
 
-    public function testBuildUrl()
+    protected function getExpectedTextSummary(): stdClass
     {
-        $url = $this->invokeProtectedSdkMethod('buildUrl', [['SM_QUOTE_AVOID' => 1]]);
-
-        $this->assertEquals(
-            'http://api.smmry.com?SM_API_KEY=D74KLJ345UH9SHDF1&SM_LENGTH=5&SM_QUOTE_AVOID=1',
-            $url
+        return $this->getExpectedSummary(
+            file_get_contents(__DIR__ . '/../Data/summarized-text.txt')
         );
     }
 
-    protected function invokeProtectedSdkMethod(string $method, array $args = [])
+    protected function getExpectedUrlTextSummary(): stdClass
     {
-        $reflection = new ReflectionMethod(get_class($this->sdk), $method);
-        $reflection->setAccessible(true);
+        return $this->getExpectedSummary(
+            file_get_contents(__DIR__ . '/../Data/summarized-url.txt')
+        );
+    }
 
-        return $reflection->invokeArgs($this->sdk, $args);
+    protected function getTextToSummarize(): string
+    {
+        return file_get_contents(__DIR__ . '/../Data/full-text.txt');
     }
 }
