@@ -9,19 +9,20 @@ class SDKTest extends TestCase
 {
     protected $sdk;
 
-    public function setUp()
+    protected function setUp(): void
     {
+        parent::setUp();
         $this->sdk = new SDK(['api_key' => $this->config['api_key'], 'summary_length' => 5]);
     }
 
     public function testApiKeyIsInvalid()
     {
-        $sdk = $this->sdk = new SDK(['api_key' => 'INVALID1J3243N090', 'summary_length' => 5]);
+        $sdk = new SDK(['api_key' => 'INVALID1J3243N090', 'summary_length' => 5]);
         $response = $sdk->summarizeText($this->getTextToSummarize());
 
-        $this->assertInstanceOf('stdClass', $response);
-        $this->assertObjectHasAttribute('sm_api_error', $response);
-        $this->assertObjectHasAttribute('sm_api_message', $response);
+        $this->assertInstanceOf(stdClass::class, $response);
+        $this->assertTrue(property_exists($response, 'sm_api_error'), "Property 'sm_api_error' does not exist");
+        $this->assertTrue(property_exists($response, 'sm_api_message'), "Property 'sm_api_message' does not exist");
         $this->assertEquals(1, $response->sm_api_error);
         $this->assertEquals('INVALID API KEY', $response->sm_api_message);
     }
@@ -30,8 +31,8 @@ class SDKTest extends TestCase
     {
         $response = $this->sdk->summarizeText($this->getTextToSummarize());
 
-        $this->assertInstanceOf('stdClass', $response);
-        $this->assertObjectHasAttribute('sm_api_content', $response);
+        $this->assertInstanceOf(stdClass::class, $response);
+        $this->assertTrue(property_exists($response, 'sm_api_content'), "Property 'sm_api_content' does not exist");
         $this->assertEquals($this->getExpectedTextSummary()->sm_api_content, $response->sm_api_content);
     }
 
@@ -41,8 +42,8 @@ class SDKTest extends TestCase
             'http://collegefootball.ap.org/article/mayfield-leads-oklahoma-35-19-sugar-bowl-win-over-auburn'
         );
 
-        $this->assertInstanceOf('stdClass', $response);
-        $this->assertObjectHasAttribute('sm_api_content', $response);
+        $this->assertInstanceOf(stdClass::class, $response);
+        $this->assertTrue(property_exists($response, 'sm_api_content'), "Property 'sm_api_content' does not exist");
         $this->assertEquals($this->getExpectedUrlTextSummary()->sm_api_content, $response->sm_api_content);
     }
 
