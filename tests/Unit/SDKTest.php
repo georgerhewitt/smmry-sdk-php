@@ -41,7 +41,7 @@ class SDKTest extends TestCase
 
         // Ensure 'api_key' is set
         if (!isset($this->config['api_key'])) {
-            $this->config['api_key'] = 'FD66E4690D'; // Default or test value
+            $this->config['api_key'] = 'MY_KEY'; // Default or test value
         }
     }
 
